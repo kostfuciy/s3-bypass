@@ -9,7 +9,9 @@
 </p>
 
 <p align="center">
-  <img src="media/screenshot.png" alt="S3 Bypass App Screenshot" width="280" />
+  <img src="media/screenshot.png" alt="S3 Bypass App Screenshot 1" width="280" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="media/screenshot2.png" alt="S3 Bypass App Screenshot 2" width="280" />
 </p>
 
 В отличие от классических VPN-протоколов, которые легко распознаются и блокируются, **S3 Bypass** использует нестандартный подход маскировки трафика через доверенные "белые списки" облачных провайдеров (в частности, AWS S3). 
