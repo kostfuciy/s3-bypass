@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bottom_sheet_bg"
+    android:paddingTop="12dp"
+    android:paddingBottom="32dp"
+    android:paddingHorizontal="24dp">
+
+    <!-- Bottom sheet drag handle (little pill) -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:background="@drawable/handle_bg"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="24dp" />
+
+    <!-- Header -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Профили"
+        android:textColor="@color/text_primary"
+        android:textSize="20sp"
+        android:fontFamily="sans-serif-medium"
+        android:layout_marginBottom="16dp"
+        android:layout_marginStart="2dp" />
+
+    <!-- Profiles List Scroll -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxHeight="350dp"
+        android:scrollbars="none"
+        android:overScrollMode="never">
+
+        <LinearLayout
+            android:id="@+id/layoutProfilesContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+    </ScrollView>
+
+    <!-- Spacing -->
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="24dp" />
+
+    <!-- Import Button -->
+    <LinearLayout
+        android:id="@+id/btnDialogImport"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:background="@drawable/import_button_bg"
+        android:clickable="true"
+        android:focusable="true">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="+ Добавить профиль"
+            android:textColor="#06080F"
+            android:textSize="15sp"
+            android:letterSpacing="0.02"
+            android:fontFamily="sans-serif-medium" />
+
+    </LinearLayout>
+
+</LinearLayout>
