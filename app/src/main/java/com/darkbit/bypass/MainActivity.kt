@@ -19,7 +19,12 @@ import androidx.appcompat.app.AlertDialog
 import android.widget.RadioButton
 import android.widget.TextView
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import java.io.File
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
@@ -128,9 +133,14 @@ class MainActivity : AppCompatActivity() {
             openUrl("https://t.me/darkbitVPN_bot")
         }
 
+        binding.tvLogs.setOnClickListener {
+            showLogsDialog()
+        }
+
         updateUI(connected = false)
         checkPrivacyDisclosure()
         checkFirstLaunchGreeting()
+        checkForUpdates()
 
         // Set app version dynamically
         try {
@@ -460,6 +470,88 @@ class MainActivity : AppCompatActivity() {
         importConfigLauncher.launch(intent)
     }
 
+    private fun showLogsDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_logs, null)
+        val scrollLogs = dialogView.findViewById<ScrollView>(R.id.scrollLogs)
+        val tvLogContent = dialogView.findViewById<TextView>(R.id.tvLogContent)
+        val btnLogsClear = dialogView.findViewById<View>(R.id.btnLogsClear)
+        val btnLogsCopy = dialogView.findViewById<View>(R.id.btnLogsCopy)
+        val btnLogsShare = dialogView.findViewById<View>(R.id.btnLogsShare)
+
+        val logFile = File(File(filesDir, "logs"), "xray.log")
+        
+        fun loadLogs() {
+            if (logFile.exists() && logFile.length() > 0) {
+                try {
+                    val logsText = logFile.readText()
+                    tvLogContent.text = logsText
+                } catch (e: Exception) {
+                    tvLogContent.text = "Ошибка чтения логов: ${e.message}"
+                }
+            } else {
+                tvLogContent.text = "Логи пусты..."
+            }
+            // Auto scroll to bottom
+            scrollLogs.post {
+                scrollLogs.fullScroll(View.FOCUS_DOWN)
+            }
+        }
+
+        loadLogs()
+
+        val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+        dialog.setContentView(dialogView)
+        dialog.setOnShowListener {
+            val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
+            bottomSheet?.setBackgroundResource(android.R.color.transparent)
+        }
+
+        btnLogsClear.setOnClickListener {
+            if (logFile.exists()) {
+                logFile.delete()
+            }
+            tvLogContent.text = "Логи пусты..."
+            Toast.makeText(this, "Логи очищены", Toast.LENGTH_SHORT).show()
+        }
+
+        btnLogsCopy.setOnClickListener {
+            val logText = tvLogContent.text.toString()
+            if (logText.isEmpty() || logText == "Логи пусты...") {
+                Toast.makeText(this, "Логи пусты", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            try {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newPlainText("Xray Logs", logText)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "Логи скопированы в буфер обмена", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this, "Ошибка копирования: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        btnLogsShare.setOnClickListener {
+            val logText = tvLogContent.text.toString()
+            if (logText.isEmpty() || logText == "Логи пусты...") {
+                Toast.makeText(this, "Логи пусты", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            try {
+                val sendIntent = Intent().apply {
+                    action = Intent.ACTION_SEND
+                    putExtra(Intent.EXTRA_TEXT, logText)
+                    type = "text/plain"
+                }
+                val shareIntent = Intent.createChooser(sendIntent, "Поделиться логами")
+                startActivity(shareIntent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "Не удалось отправить логи: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        dialog.show()
+    }
+
     private fun showProfilesDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_profiles, null)
         val container = dialogView.findViewById<LinearLayout>(R.id.layoutProfilesContainer)
@@ -588,5 +680,67 @@ class MainActivity : AppCompatActivity() {
                 oldConfig.delete()
             }
         }
+    }
+
+    private fun checkForUpdates() {
+        val prefs = getSharedPreferences("vpn_prefs", MODE_PRIVATE)
+        if (!prefs.getBoolean("disclosure_accepted", false)) return
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val currentVersion = packageManager.getPackageInfo(packageName, 0).versionName ?: "1.0"
+                val url = java.net.URL("https://api.github.com/repos/SpaceNeuroX/s3-bypass/releases/latest")
+                val connection = url.openConnection() as java.net.HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.setRequestProperty("User-Agent", "S3-Bypass-Android-App")
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
+
+                if (connection.responseCode == 200) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    val json = org.json.JSONObject(response)
+                    val tagName = json.getString("tag_name")
+                    val htmlUrl = json.getString("html_url")
+
+                    if (isNewerVersion(currentVersion, tagName)) {
+                        withContext(Dispatchers.Main) {
+                            showUpdateDialog(tagName, htmlUrl)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MainActivity", "Failed to check for updates", e)
+            }
+        }
+    }
+
+    private fun isNewerVersion(current: String, latest: String): Boolean {
+        val cleanCurrent = current.replace(Regex("[^0-9.]"), "")
+        val cleanLatest = latest.replace(Regex("[^0-9.]"), "")
+        val currParts = cleanCurrent.split(".").mapNotNull { it.toIntOrNull() }
+        val lateParts = cleanLatest.split(".").mapNotNull { it.toIntOrNull() }
+        val length = maxOf(currParts.size, lateParts.size)
+        for (i in 0 until length) {
+            val currVal = currParts.getOrElse(i) { 0 }
+            val lateVal = lateParts.getOrElse(i) { 0 }
+            if (lateVal > currVal) return true
+            if (currVal > lateVal) return false
+        }
+        return false
+    }
+
+    private fun showUpdateDialog(newVersion: String, downloadUrl: String) {
+        if (isFinishing || isDestroyed) return
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("Доступно обновление")
+            .setMessage("Доступна новая версия приложения ($newVersion). Хотите перейти на страницу релиза и скачать обновление?")
+            .setPositiveButton("Скачать") { dialog, _ ->
+                openUrl(downloadUrl)
+                dialog.dismiss()
+            }
+            .setNegativeButton("Позже") { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
     }
 }

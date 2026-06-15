@@ -317,13 +317,31 @@
 
             </LinearLayout>
 
+            <!-- Logs Button -->
+            <TextView
+                android:id="@+id/tvLogs"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="16dp"
+                android:text="Логи работы"
+                android:textColor="@color/accent_cyan"
+                android:textSize="12sp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.1"
+                android:clickable="true"
+                android:focusable="true"
+                android:background="?android:attr/selectableItemBackground"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="6dp" />
+
             <!-- App Version -->
             <TextView
                 android:id="@+id/tvVersion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_horizontal"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="8dp"
                 android:text="Версия 1.0"
                 android:textColor="@color/text_muted"
                 android:textSize="11sp"
