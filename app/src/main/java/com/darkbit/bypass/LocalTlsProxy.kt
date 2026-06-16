@@ -12,9 +12,13 @@ class LocalTlsProxy(private val port: Int, private val targetHost: String) {
     private var serverSocket: ServerSocket? = null
     @Volatile private var isRunning = false
 
+    val assignedPort: Int
+        get() = serverSocket?.localPort ?: port
+
     fun start() {
         try {
             serverSocket = ServerSocket(port, 50, InetAddress.getByName("127.0.0.1"))
+            val boundPort = serverSocket?.localPort ?: port
             isRunning = true
             thread {
                 while (isRunning) {
@@ -26,7 +30,7 @@ class LocalTlsProxy(private val port: Int, private val targetHost: String) {
                     }
                 }
             }
-            Log.i("LocalTlsProxy", "Started on 127.0.0.1:$port -> TLS $targetHost:443")
+            Log.i("LocalTlsProxy", "Started on 127.0.0.1:$boundPort -> TLS $targetHost:443")
         } catch (e: Exception) {
             Log.e("LocalTlsProxy", "Failed to start", e)
         }

@@ -78,26 +78,41 @@ class XrayService : VpnService() {
     private fun startXray(configPath: String) {
         serviceScope.launch {
             try {
+                // Clear old logs
+                try {
+                    val logFile = File(File(filesDir, "logs"), "xray.log")
+                    if (logFile.exists()) logFile.delete()
+                } catch (e: Exception) {}
+
+                writeLog("Starting connection sequence...")
+
                 // Copy xray binary from assets if needed
                 val xrayBin = prepareXrayBinary() ?: run {
-                    Log.e(TAG, "Failed to prepare xray binary")
+                    writeLog("Error: Failed to prepare xray binary")
                     stopSelf()
                     return@launch
                 }
 
-                // Rewrite S3 endpoint to localhost:10809 and start a TLS proxy.
-                // This avoids Go's DNS resolver completely and uses Android's Java DNS & TLS.
-                val configPair = prepareTlsProxyConfig(configPath)
-                val targetHost = configPair.first
-                val finalConfigPath = configPair.second
+                // Extract target host first to start proxy on a dynamic port
+                writeLog("Parsing configuration files...")
+                val targetHost = getS3Host(configPath)
+                var finalConfigPath = configPath
 
                 if (targetHost != null) {
                     localTlsProxy?.stop()
-                    localTlsProxy = LocalTlsProxy(10809, targetHost)
+                    localTlsProxy = LocalTlsProxy(0, targetHost) // Bind to free port dynamically
                     localTlsProxy?.start()
+                    val assignedPort = localTlsProxy?.assignedPort ?: 10809
+                    writeLog("Starting local TLS proxy for endpoint: $targetHost -> localhost:$assignedPort")
+                    
+                    val configPair = prepareTlsProxyConfig(configPath, assignedPort)
+                    finalConfigPath = configPair.second
+                } else {
+                    writeLog("Warning: No target host endpoint found in configuration to proxy.")
                 }
 
                 // Build VPN tunnel
+                writeLog("Establishing VPN Tunnel interface...")
                 val builder = Builder()
                     .addAddress("172.19.0.1", 30)
                     .addAddress("fd00::1", 126)
@@ -111,7 +126,7 @@ class XrayService : VpnService() {
                 try {
                     builder.addDisallowedApplication(packageName)
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to exclude app from VPN", e)
+                    writeLog("Warning: Failed to exclude app from VPN: ${e.message}")
                 }
 
                 vpnInterface?.close()
@@ -120,41 +135,42 @@ class XrayService : VpnService() {
                 if (vpnInterface != null) {
                     try {
                         Os.dup2(vpnInterface!!.fileDescriptor, 0)
+                        writeLog("VPN Tunnel successfully configured and bound to system fd 0")
                     } catch (e: Exception) {
-                        Log.e(TAG, "Failed to dup2 tun fd", e)
+                        writeLog("Error: Failed to dup2 tun fd: ${e.message}")
                     }
                 } else {
-                    Log.e(TAG, "Failed to establish VPN interface")
+                    writeLog("Error: Failed to establish VPN interface")
                     stopSelf()
                     return@launch
                 }
 
-                Log.i(TAG, "Starting xray with config: $finalConfigPath")
-
+                writeLog("Starting Xray core process...")
                 val pb = ProcessBuilder(xrayBin.absolutePath, "run", "-c", finalConfigPath)
                 pb.redirectErrorStream(true)
                 pb.environment()["HOME"] = filesDir.absolutePath
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     pb.redirectInput(ProcessBuilder.Redirect.INHERIT)
                 } else {
-                    Log.w(TAG, "Full VPN feature requires Android 8.0+")
+                    writeLog("Warning: Full VPN feature requires Android 8.0+")
                 }
 
                 xrayProcess = pb.start()
                 connectionStartTime = System.currentTimeMillis()
                 startSpeedMonitor()
                 onStatusChanged?.invoke(true)
+                writeLog("Xray core running. Streaming stdout/stderr output:")
 
                 // Read logs
                 xrayProcess?.inputStream?.bufferedReader()?.use { reader ->
                     var line: String?
                     while (reader.readLine().also { line = it } != null) {
-                        Log.d(TAG, "xray: $line")
+                        writeLog("xray: $line")
                     }
                 }
 
                 val exitCode = xrayProcess?.waitFor() ?: -1
-                Log.i(TAG, "xray exited with code: $exitCode")
+                writeLog("Xray core exited with code: $exitCode")
                 onStatusChanged?.invoke(false)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
@@ -165,7 +181,7 @@ class XrayService : VpnService() {
                 stopSelf()
 
             } catch (e: Exception) {
-                Log.e(TAG, "Error running xray", e)
+                writeLog("Error running xray: ${e.message}")
                 onStatusChanged?.invoke(false)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
@@ -264,10 +280,10 @@ class XrayService : VpnService() {
 
     /**
      * Parses the config, finds the fedarisha S3 endpoint, extracts the host,
-     * and rewrites the endpoint to http://127.0.0.1:10809.
+     * and rewrites the endpoint to http://127.0.0.1:port.
      * Returns Pair(targetHost, patchedConfigPath)
      */
-    private fun prepareTlsProxyConfig(configPath: String): Pair<String?, String> {
+    private fun prepareTlsProxyConfig(configPath: String, proxyPort: Int): Pair<String?, String> {
         return try {
             val configFile = File(configPath)
             val config = org.json.JSONObject(configFile.readText())
@@ -287,7 +303,7 @@ class XrayService : VpnService() {
                 endpointHost = url.host
                 if (endpointHost.matches(Regex("[\\d.]+"))) continue
                 
-                storage.put("endpoint", "http://127.0.0.1:10809")
+                storage.put("endpoint", "http://127.0.0.1:$proxyPort")
                 modified = true
             }
 
@@ -301,6 +317,30 @@ class XrayService : VpnService() {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to prepare TLS proxy config", e)
             Pair(null, configPath)
+        }
+    }
+
+    private fun getS3Host(configPath: String): String? {
+        return try {
+            val configFile = File(configPath)
+            val config = org.json.JSONObject(configFile.readText())
+            val outbounds = config.optJSONArray("outbounds") ?: return null
+            for (i in 0 until outbounds.length()) {
+                val outbound = outbounds.getJSONObject(i)
+                if (outbound.optString("protocol") != "fedarisha") continue
+                val storage = outbound.optJSONObject("settings")?.optJSONObject("storage") ?: continue
+                val endpoint = storage.optString("endpoint", "")
+                if (endpoint.isNotEmpty()) {
+                    val url = java.net.URL(endpoint)
+                    val host = url.host
+                    if (!host.matches(Regex("[\\d.]+"))) {
+                        return host
+                    }
+                }
+            }
+            null
+        } catch (e: Exception) {
+            null
         }
     }
 
@@ -370,5 +410,23 @@ class XrayService : VpnService() {
         cleanup()
         serviceScope.cancel()
         super.onDestroy()
+    }
+
+    private fun writeLog(message: String) {
+        Log.d(TAG, message)
+        try {
+            val logsDir = File(filesDir, "logs")
+            if (!logsDir.exists()) {
+                logsDir.mkdirs()
+            }
+            val logFile = File(logsDir, "xray.log")
+            if (logFile.exists() && logFile.length() > 1024 * 1024) {
+                logFile.delete()
+            }
+            val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+            logFile.appendText("[$timestamp] $message\n")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to write log to file", e)
+        }
     }
 }
