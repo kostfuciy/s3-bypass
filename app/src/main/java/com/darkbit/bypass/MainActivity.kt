@@ -122,12 +122,8 @@ class MainActivity : AppCompatActivity() {
 
         binding.btnPower.onClickListener = { toggleConnection() }
 
-        binding.configSection.setOnClickListener {
-            showProfilesDialog()
-        }
-
-        binding.tvImportConfig.setOnClickListener {
-            showProfilesDialog()
+        binding.btnImportConfig.setOnClickListener {
+            triggerConfigImport()
         }
 
         binding.btnTelegramChannel.setOnClickListener {
@@ -143,13 +139,24 @@ class MainActivity : AppCompatActivity() {
             when (item.itemId) {
                 R.id.nav_home -> {
                     binding.layoutHome.visibility = View.VISIBLE
+                    binding.layoutProfiles.visibility = View.GONE
                     binding.layoutLogs.visibility = View.GONE
                     binding.layoutAbout.visibility = View.GONE
                     stopLogAutoRefresh()
                     true
                 }
+                R.id.nav_profiles -> {
+                    binding.layoutHome.visibility = View.GONE
+                    binding.layoutProfiles.visibility = View.VISIBLE
+                    binding.layoutLogs.visibility = View.GONE
+                    binding.layoutAbout.visibility = View.GONE
+                    populateProfiles()
+                    stopLogAutoRefresh()
+                    true
+                }
                 R.id.nav_logs -> {
                     binding.layoutHome.visibility = View.GONE
+                    binding.layoutProfiles.visibility = View.GONE
                     binding.layoutLogs.visibility = View.VISIBLE
                     binding.layoutAbout.visibility = View.GONE
                     startLogAutoRefresh()
@@ -157,6 +164,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 R.id.nav_about -> {
                     binding.layoutHome.visibility = View.GONE
+                    binding.layoutProfiles.visibility = View.GONE
                     binding.layoutLogs.visibility = View.GONE
                     binding.layoutAbout.visibility = View.VISIBLE
                     stopLogAutoRefresh()
@@ -316,6 +324,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startVpn() {
+        // Clear logs instantly
+        val logFile = File(File(filesDir, "logs"), "xray.log")
+        if (logFile.exists()) logFile.delete()
+        binding.tvLogContent.text = "Подключение..."
+        
         updateUI(connecting = true)
         val intent = Intent(this, XrayService::class.java).apply {
             action = XrayService.ACTION_START
@@ -450,6 +463,7 @@ class MainActivity : AppCompatActivity() {
             // Set as active
             setActiveConfig(fileName)
             Toast.makeText(this, "Конфиг '$fileName' добавлен", Toast.LENGTH_SHORT).show()
+            populateProfiles()
 
         } catch (e: Exception) {
             Toast.makeText(this, "Ошибка импорта: ${e.message}", Toast.LENGTH_LONG).show()
@@ -582,30 +596,8 @@ class MainActivity : AppCompatActivity() {
         importConfigLauncher.launch(intent)
     }
 
-    private fun showProfilesDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_profiles, null)
-        val container = dialogView.findViewById<LinearLayout>(R.id.layoutProfilesContainer)
-        val btnImport = dialogView.findViewById<View>(R.id.btnDialogImport)
-
-        val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(this)
-        dialog.setContentView(dialogView)
-        // Make the system bottom sheet container transparent so our custom rounded corners show
-        dialog.setOnShowListener {
-            val bottomSheet = dialog.findViewById<View>(com.google.android.material.R.id.design_bottom_sheet)
-            bottomSheet?.setBackgroundResource(android.R.color.transparent)
-        }
-
-        populateProfiles(container, dialog)
-
-        btnImport.setOnClickListener {
-            dialog.dismiss()
-            triggerConfigImport()
-        }
-
-        dialog.show()
-    }
-
-    private fun populateProfiles(container: LinearLayout, dialog: android.app.Dialog) {
+    private fun populateProfiles() {
+        val container = binding.layoutProfilesContainer
         container.removeAllViews()
         val configsDir = File(filesDir, "configs")
         if (!configsDir.exists()) {
@@ -644,7 +636,7 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this@MainActivity, "Сначала отключите VPN", Toast.LENGTH_SHORT).show()
                 } else {
                     setActiveConfig(file.name)
-                    dialog.dismiss()
+                    populateProfiles()
                 }
             }
             rbSelected.setOnClickListener(selectListener)
@@ -659,7 +651,7 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     file.delete()
                     Toast.makeText(this@MainActivity, "Профиль удален", Toast.LENGTH_SHORT).show()
-                    populateProfiles(container, dialog)
+                    populateProfiles()
                 }
             }
 

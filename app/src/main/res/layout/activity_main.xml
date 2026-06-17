@@ -206,57 +206,68 @@
                     </LinearLayout>
                 </LinearLayout>
 
-                <!-- Config section -->
-                <LinearLayout
-                    android:id="@+id/configSection"
-                    android:layout_width="0dp"
+                <!-- Active Config -->
+                <TextView
+                    android:id="@+id/tvConfigName"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:paddingHorizontal="28dp"
+                    android:text="Нет конфига"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:fontFamily="sans-serif"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
                     android:layout_marginBottom="32dp"
-                    app:layout_constraintBottom_toBottomOf="parent">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:background="@drawable/config_bg"
-                        android:padding="16dp"
-                        android:gravity="center_vertical">
-
-                        <TextView
-                            android:id="@+id/tvConfigName"
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:text="Нет конфига"
-                            android:textColor="@color/text_secondary"
-                            android:textSize="14sp"
-                            android:ellipsize="end"
-                            android:maxLines="1"
-                            android:fontFamily="sans-serif" />
-
-                        <TextView
-                            android:id="@+id/tvImportConfig"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="ПРОФИЛИ"
-                            android:textColor="@color/accent_cyan"
-                            android:textSize="12sp"
-                            android:letterSpacing="0.15"
-                            android:fontFamily="sans-serif-medium"
-                            android:paddingStart="16dp"
-                            android:clickable="true"
-                            android:focusable="true" />
-                    </LinearLayout>
-                </LinearLayout>
+                    app:layout_constraintBottom_toBottomOf="parent" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
         </ScrollView>
 
-        <!-- 2. LOGS TAB -->
+        <!-- 2. PROFILES TAB -->
+        <ScrollView
+            android:id="@+id/layout_profiles"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="24dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Ваши Профили"
+                    android:textColor="@color/text_primary"
+                    android:textSize="20sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:gravity="center"
+                    android:layout_marginBottom="24dp"/>
+
+                <LinearLayout
+                    android:id="@+id/layoutProfilesContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <Button
+                    android:id="@+id/btnImportConfig"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Импорт конфига (.json)"
+                    android:textColor="@color/bg_primary"
+                    android:backgroundTint="@color/accent_cyan"
+                    android:layout_marginTop="24dp"/>
+
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- 3. LOGS TAB -->
         <LinearLayout
             android:id="@+id/layout_logs"
             android:layout_width="match_parent"

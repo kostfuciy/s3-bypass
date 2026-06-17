@@ -200,21 +200,7 @@ class XrayService : VpnService() {
                 onStatusChanged?.invoke(true)
                 writeLog("Xray core running inside AAR!")
 
-                // Verify IP through the SOCKS5 proxy
-                serviceScope.launch {
-                    delay(8000) // Ждем 8 секунд для установки сессии fedarisha
-                    try {
-                        val proxy = java.net.Proxy(java.net.Proxy.Type.SOCKS, java.net.InetSocketAddress("127.0.0.1", 10808))
-                        val url = java.net.URL("https://api.ipify.org")
-                        val conn = url.openConnection(proxy) as java.net.HttpURLConnection
-                        conn.connectTimeout = 10000
-                        conn.readTimeout = 10000
-                        val ip = conn.inputStream.bufferedReader().use { it.readText() }
-                        writeLog("VPN Verified! Your protected IP: $ip")
-                    } catch (e: Exception) {
-                        writeLog("VPN Warning: Connected, but IP verification failed (${e.message})")
-                    }
-                }
+                // Removed IP verification to prevent timeouts
 
             } catch (e: Exception) {
                 writeLog("Error running xray from AAR: ${e.message}")
@@ -337,6 +323,7 @@ class XrayService : VpnService() {
             .build()
     }
 
+    @RequiresApi(Build.VERSION_CODES.M)
     private fun updateNotificationSpeed(downBytes: Long, upBytes: Long) {
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager?.notify(NOTIFICATION_ID, buildNotification(downBytes, upBytes))
