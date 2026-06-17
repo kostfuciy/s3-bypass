@@ -309,10 +309,11 @@ class XrayService : VpnService() {
                 
                 val url = java.net.URL(endpoint)
                 endpointHost = url.host
-                if (endpointHost.matches(Regex("[\\d.]+"))) continue
                 
-                storage.put("endpoint", "http://127.0.0.1:$proxyPort")
-                modified = true
+                // We purposefully DO NOT replace the endpoint with LocalTlsProxy (http://127.0.0.1:port)
+                // because strict S3 providers (like VK Cloud, Amazon, Yandex) strictly validate the Host header
+                // and AWS v4 signatures. Altering the endpoint breaks the signature and causes 400 Bad Request.
+                // The connection will go directly via Xray core.
             }
 
             // Inject fallback outbounds if missing
