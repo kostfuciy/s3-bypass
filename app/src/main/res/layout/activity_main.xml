@@ -443,7 +443,7 @@
 
     </FrameLayout>
 
-    <!-- Bottom Navigation -->
+    <!-- Bottom Navigation with floating pill style -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNavigation"
         android:layout_width="0dp"
@@ -452,8 +452,14 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:menu="@menu/bottom_nav_menu"
-        app:itemIconTint="@color/accent_cyan"
-        app:itemTextColor="@color/text_secondary"
-        android:background="#181A23" />
+        android:background="@drawable/bg_bottom_nav"
+        app:itemBackground="@drawable/bg_bottom_nav_item"
+        app:itemIconTint="@color/nav_item_color"
+        app:itemTextColor="@color/nav_item_color"
+        app:itemRippleColor="@null"
+        app:labelVisibilityMode="labeled"
+        android:layout_margin="16dp"
+        android:paddingVertical="8dp"
+        android:paddingHorizontal="8dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
