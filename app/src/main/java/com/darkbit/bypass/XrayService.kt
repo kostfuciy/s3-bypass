@@ -156,7 +156,7 @@ class XrayService : VpnService() {
                     val logObj = jsonConfig.optJSONObject("log") ?: org.json.JSONObject()
                     logObj.put("access", logFile.absolutePath)
                     logObj.put("error", logFile.absolutePath)
-                    logObj.put("loglevel", "info")
+                    logObj.put("loglevel", "debug")
                     jsonConfig.put("log", logObj)
                     
                     val finalConfigContent = jsonConfig.toString()
@@ -336,7 +336,7 @@ class XrayService : VpnService() {
             }
             val logFile = File(logsDir, "xray.log")
             if (logFile.exists() && logFile.length() > 1024 * 1024) {
-                logFile.delete()
+                logFile.writeText("[LOGS CLEARED DUE TO SIZE LIMIT]\n")
             }
             val timestamp = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
             logFile.appendText("[$timestamp] $message\n")
