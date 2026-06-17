@@ -93,6 +93,15 @@ class XrayService : VpnService() {
                     return@launch
                 }
 
+                // Start HTTP CONNECT proxy to workaround Android Go DNS issues
+                localTlsProxy?.stop()
+                localTlsProxy = LocalTlsProxy(0)
+                localTlsProxy?.start()
+                val proxyPort = localTlsProxy?.assignedPort ?: 0
+                if (proxyPort > 0) {
+                    writeLog("Started local HTTP proxy on port $proxyPort for DNS workaround")
+                }
+
                 writeLog("Parsing configuration files...")
                 val finalConfigPath = configPath
 
@@ -134,6 +143,9 @@ class XrayService : VpnService() {
                 val pb = ProcessBuilder(xrayBin.absolutePath, "run", "-c", finalConfigPath)
                 pb.redirectErrorStream(true)
                 pb.environment()["HOME"] = filesDir.absolutePath
+                if (proxyPort > 0) {
+                    pb.environment()["HTTPS_PROXY"] = "http://127.0.0.1:$proxyPort"
+                }
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     pb.redirectInput(ProcessBuilder.Redirect.INHERIT)
                 } else {
